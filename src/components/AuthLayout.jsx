@@ -28,11 +28,9 @@ export default function AuthLayout({ children }) {
                             <li className="nav-item"><a className="nav-link" href="#">About</a></li>
                             <li className="nav-item"><a className="nav-link" href="#">Services</a></li>
                             <li className="nav-item"><a className="nav-link" href="#">Contact</a></li>
+
                             <li className="nav-item ms-lg-4 mt-3 mt-lg-0">
-                                <Link to="/" className="btn btn-get-started">Login</Link>
-                            </li>
-                            <li className="nav-item ms-2 mt-2 mt-lg-0">
-                                <Link to="/register" className="btn btn-get-started">Register</Link>
+                                <Link to="/login" className="btn btn-get-started">Login</Link>
                             </li>
                         </ul>
                     </div>

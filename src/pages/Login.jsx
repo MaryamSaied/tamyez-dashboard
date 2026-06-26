@@ -38,7 +38,9 @@ export default function Login() {
             setLoading(false)
         }
     }
-
+    const handleGoogleLogin = () => {
+        window.location.href = "https://tamyez.mooo.com/api/v1/auth/google";
+    };
     return (
         <AuthLayout>
             <div className="auth-card">
@@ -83,7 +85,7 @@ export default function Login() {
                 </button>
 
                 <div className="divider">Or continue with</div>
-                <button className="btn-google" type="button" onClick={() => navigate('/google-auth')}>
+                <button className="btn-google" type="button" onClick={handleGoogleLogin}>
                     <svg width="18" height="18" viewBox="0 0 48 48">
                         <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z" />
                         <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 19.001 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z" />
