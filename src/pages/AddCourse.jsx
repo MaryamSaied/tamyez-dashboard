@@ -18,6 +18,7 @@ export default function AddCourse() {
         lang: 'English',
     })
     const [titleError, setTitleError] = useState('')
+    const [tempCourses, setTempCourses] = useState([])
 
     const setField = (key, value) => setForm({ ...form, [key]: value })
 
@@ -32,12 +33,44 @@ export default function AddCourse() {
 
     const submit = () => {
         if (!validate()) return
-        navigate(`/update-career?name=${encodeURIComponent(careerName)}`)
+
+        const newCourse = {
+            title: form.title,
+            url: form.url,
+            pricingType: form.pricing,
+            appliesTo: form.applies,
+            language: form.lang === 'Arabic' ? 'ar' : 'en',
+        }
+
+        navigate(-1, {
+            state: { newCourse }
+        })
     }
 
     const addAnother = () => {
         if (!validate()) return
-        setForm({ ...form, title: '', desc: '', url: '', duration: '' })
+
+        const newCourse = {
+            title: form.title,
+            url: form.url,
+            pricingType: form.pricing,
+            appliesTo: form.applies,
+            language: form.lang === 'Arabic' ? 'ar' : 'en',
+        }
+
+        // نخزن في local array مؤقت
+        setTempCourses(prev => [...prev, newCourse])
+
+        setForm({
+            title: '',
+            desc: '',
+            pricing: 'Free',
+            applies: 'All',
+            specSteps: '',
+            duration: '',
+            url: '',
+            lang: 'English',
+        })
     }
 
     return (

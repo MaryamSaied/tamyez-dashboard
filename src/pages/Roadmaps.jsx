@@ -44,24 +44,14 @@ export default function Roadmaps() {
 
         if (searchKey) params.searchKey = searchKey
 
-        const apiFn = status === 'frozen'
-            ? roadmapsAPI.getArchived(params)
-            : roadmapsAPI.getAll(params)
+        const apiFn =
+            status === 'frozen'
+                ? roadmapsAPI.getArchived(params)
+                : roadmapsAPI.getAll(params)
 
         apiFn
             .then((res) => {
-                let data = res.body?.data || []
-
-                console.log('DATA:', data) // 👈 شوفي شكل الداتا
-
-                // ✅ فلترة حسب الحالة
-                if (statusFilter === 'frozen') {
-                    data = data.filter(item => item?.isArchived === true)
-                }
-
-                if (statusFilter === 'active') {
-                    data = data.filter(item => item?.isArchived === false)
-                }
+                const data = res.body?.data || []
 
                 setRoadmaps(data)
                 setTotalPages(res.body?.totalPages || 1)
@@ -72,7 +62,6 @@ export default function Roadmaps() {
             .finally(() => {
                 setLoading(false)
             })
-
     }, [statusFilter])
 
     useEffect(() => { fetchRoadmaps(1, '', statusFilter) }, [fetchRoadmaps])
