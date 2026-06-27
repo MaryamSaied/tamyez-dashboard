@@ -44,11 +44,22 @@ export default function UpdateRoadmap() {
     const [books, setBooks] = useState([])
     const [resources, setResources] = useState([])
     const [quizzes, setQuizzes] = useState([])
+    const [stepNameModal, setStepNameModal] = useState('')
+    const [stepDescModal, setStepDescModal] = useState('')
+    const [stepLanguage, setStepLanguage] = useState('en')
+    const [language, setLanguage] = useState("en")
 
     // Add new course modal
     const [showAddCourse, setShowAddCourse] = useState(false)
     const [newCourse, setNewCourse] = useState({ title: '', url: '', pricingType: 'Free', language: 'en' })
     const [courseLoading, setCourseLoading] = useState(false)
+    const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [itemToDelete, setItemToDelete] = useState(null)
+    const [showAddStepModal, setShowAddStepModal] = useState(false)
+    const [stepCourses, setStepCourses] = useState([{ title: '', url: '' }])
+    const [stepBooks, setStepBooks] = useState([{ title: '', url: '' }])
+    const [stepResources, setStepResources] = useState([{ title: '', url: '' }])
+    const [stepQuizzes, setStepQuizzes] = useState([{ title: '', description: '' }])
 
 
     const showToast = (msg, err = false) => {
@@ -58,19 +69,28 @@ export default function UpdateRoadmap() {
 
     const fetchStep = useCallback(() => {
         if (!stepId) { setLoading(false); return }
+
         roadmapsAPI.getById(stepId)
             .then(res => {
                 const s = res.body || res
+
                 setStep(s)
                 setTitle(s.title || '')
                 setDesc(s.description || '')
                 setOrder(String(s.order || ''))
-                setCourses(s.youtubePlaylists || s.courses || [])
+
+                // 👇 أهم تعديل هنا
+                setCourses(s.courses || [])
+                setResources(s.youtubePlaylists || [])
+                setCourses(s.courses || [])
+                setBooks(s.books || [])
+                setQuizzes(s.quizzes || [])
+
+                setLanguage(s.language || 'en')
             })
             .catch(err => setError(err.message || 'Failed to load'))
             .finally(() => setLoading(false))
     }, [stepId])
-
     useEffect(() => { fetchStep() }, [fetchStep])
 
     const handleSave = async () => {
@@ -87,25 +107,177 @@ export default function UpdateRoadmap() {
     }
 
     const handleAddCourse = async () => {
-        if (!newCourse.title.trim()) return
+        if (!newCourse.title.trim() || !newCourse.url.trim()) return
+
         setCourseLoading(true)
+
         try {
-            // update first existing resource or just show locally
-            const resourceId = courses[0]?.id || courses[0]?._id
-            if (resourceId) {
-                await roadmapsAPI.updateResource(stepId, resourceId, {
-                    title: newCourse.title, url: newCourse.url,
-                    pricingType: newCourse.pricingType, language: newCourse.language,
-                    v: step?.v ?? 1,
-                })
-            }
-            showToast('Course added!')
+            await roadmapsAPI.update(stepId, {
+                courses: [
+                    {
+                        title: newCourse.title, // ✅ بدل "Course"
+                        url: newCourse.url,
+                        pricingType: newCourse.pricingType,
+                        language: newCourse.language
+                    }
+                ],
+                v: step?.v ?? 0
+            })
+
+            showToast('Course added! ✅')
             setShowAddCourse(false)
-            setNewCourse({ title: '', url: '', pricingType: 'Free', language: 'en' })
+
+            setNewCourse({
+                title: '',
+                url: '',
+                pricingType: 'Free',
+                language: 'en'
+            })
+
             fetchStep()
-        } catch (err) { showToast(err.message || 'Failed', true) }
-        finally { setCourseLoading(false) }
+
+        } catch (err) {
+            showToast(err.message || 'Failed', true)
+        } finally {
+            setCourseLoading(false)
+        }
     }
+    const handleAddResource = async () => {
+        if (!ytTitle.trim() || !ytLink.trim()) return
+
+        try {
+            await roadmapsAPI.update(stepId, {
+                youtubePlaylists: [
+                    {
+                        title: ytTitle,
+                        url: ytLink,
+                        pricingType: 'Free',
+                        language: 'en'
+                    }
+                ],
+                v: step?.v ?? 0
+            })
+
+            showToast('Resource added ✅')
+
+            setShowAddYTResource(false)
+            setYtTitle('')
+            setYtLink('')
+
+            fetchStep()
+
+        } catch (err) {
+            console.log(err) // 👈 مهم
+            showToast(err.message || 'Failed ❌', true)
+        }
+    }
+    const handleAddBook = async () => {
+        if (!bookTitle.trim()) return
+
+        try {
+            await roadmapsAPI.update(stepId, {
+                books: [
+                    {
+                        title: bookTitle,
+                        url: bookLink,
+                        pricingType: bookPricing,
+                        language: language
+                    }
+                ],
+                v: step?.v ?? 0
+            })
+
+            showToast('Book added ✅')
+
+            setShowAddBook(false)
+
+            setBookTitle('')
+            setBookLink('')
+            setBookPricing('Free')
+
+            fetchStep()
+
+        } catch (err) {
+            showToast(err.message || 'Failed', true)
+        }
+    }
+    const handleAddQuiz = async () => {
+        if (!quizTitle.trim()) return
+
+        try {
+            await roadmapsAPI.update(stepId, {
+                quizzesIds: [quizTitle], // ✅ ده الصح
+                v: step?.v ?? 0
+            })
+
+            showToast('Quiz added ✅')
+
+            setQuizTitle('')
+            setShowAddQuiz(false)
+
+            fetchStep()
+
+        } catch (err) {
+            showToast(err.message || 'Failed', true)
+        }
+    }
+    const handleDeleteResource = async (id) => {
+        try {
+            await roadmapsAPI.update(stepId, {
+                removeYoutubePlaylists: [id],
+                v: step?.v ?? 0
+            })
+
+            showToast('Deleted ✅')
+            fetchStep()
+
+        } catch (err) {
+            showToast(err.message || 'Failed ❌', true)
+        }
+    }
+    const handleDeleteCourse = async (id) => {
+        try {
+            await roadmapsAPI.update(stepId, {
+                removeCourses: [id],
+                v: step?.v ?? 0
+            })
+
+            showToast('Deleted ✅')
+            fetchStep()
+
+        } catch (err) {
+            showToast(err.message || 'Failed ❌', true)
+        }
+    }
+    const handleDeleteBook = async (id) => {
+        try {
+            await roadmapsAPI.update(stepId, {
+                removeBooks: [id],
+                v: step?.v ?? 0
+            })
+
+            showToast('Deleted ✅')
+            fetchStep()
+
+        } catch (err) {
+            showToast(err.message || 'Failed ❌', true)
+        }
+    }
+    const handleDeleteQuiz = async (id) => {
+        try {
+            await roadmapsAPI.update(stepId, {
+                removeQuizzesIds: [id],
+                v: step?.v ?? 0
+            })
+
+            showToast('Deleted ✅')
+            fetchStep()
+
+        } catch (err) {
+            showToast(err.message || 'Failed ❌', true)
+        }
+    }
+
 
     if (loading) return <AdminLayout><Loader text="Loading..." /></AdminLayout>
     if (error) return <AdminLayout><div style={{ color: '#e74c3c', padding: 32 }}>{error}</div></AdminLayout>
@@ -178,6 +350,16 @@ export default function UpdateRoadmap() {
                 gap: 10px;
                 margin-top: 15px;
                 }
+                .add-step-modal {
+                max-width: 650px;
+                width: 100%;
+
+                max-height: 85vh;
+                overflow-y: auto;
+
+                display: flex;
+                flex-direction: column;
+            }
             `}</style>
 
             {toast && (
@@ -194,7 +376,7 @@ export default function UpdateRoadmap() {
                     <h2 style={{ fontWeight: 800, fontSize: 20, color: '#1A1A1A', margin: 0 }}>Update Career Roadmap</h2>
                     <button
                         className="ur-add-step-btn"
-                        onClick={() => navigate('/add-step')}
+                        onClick={() => setShowAddStepModal(true)}
                     >
                         <i className="bi bi-plus-lg"></i>
                         Add new step
@@ -220,6 +402,7 @@ export default function UpdateRoadmap() {
                         <textarea className="ur-input" value={desc} onChange={e => setDesc(e.target.value)} placeholder="Step description..." />
                     </div>
 
+
                     {/* Step Courses */}
                     <div className="ur-section">
                         <div className="ur-section-header">
@@ -234,20 +417,11 @@ export default function UpdateRoadmap() {
                                 <button
                                     className="ur-resource-del"
                                     onClick={() => {
-                                        const id = c.id || c._id
-
-                                        if (!id) {
-                                            setCourses(prev => prev.filter((_, idx) => idx !== i))
-                                            return
-                                        }
-                                        if (window.confirm('Delete this course?')) {
-                                            roadmapsAPI.deleteResource(stepId, id)
-                                                .then(() => {
-                                                    showToast('Course deleted!')
-                                                    fetchStep()
-                                                })
-                                                .catch(() => showToast('Delete failed', true))
-                                        }
+                                        setItemToDelete({
+                                            data: c,
+                                            type: 'course'
+                                        })
+                                        setShowDeleteModal(true)
                                     }}
                                 >
                                     <i className="bi bi-trash"></i>
@@ -276,14 +450,19 @@ export default function UpdateRoadmap() {
                             </div>
                         ) : books.map((b, i) => (
                             <div key={i} className="ur-resource-row">
-                                <span className="ur-resource-name">{b.title}</span>
+                                <span className="ur-resource-name">
+                                    <i className="bi bi-book" style={{ color: '#0B6BA0' }}></i>
+                                    {b.title}
+                                </span>
 
                                 <button
                                     className="ur-resource-del"
                                     onClick={() => {
-                                        if (window.confirm('Delete this book?')) {
-                                            setBooks(prev => prev.filter((_, idx) => idx !== i))
-                                        }
+                                        setItemToDelete({
+                                            data: b, // أو b أو q أو pl
+                                            type: 'book'
+                                        })
+                                        setShowDeleteModal(true)
                                     }}
                                 >
                                     <i className="bi bi-trash"></i>
@@ -343,6 +522,22 @@ export default function UpdateRoadmap() {
                                         <option value="Paid">Paid</option>
                                     </select>
                                 </div>
+                                {/* Language */}
+                                <div style={{ marginBottom: 10 }}>
+                                    <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                                        Language
+                                    </label>
+
+                                    <select
+                                        className="adm-search"
+                                        style={{ width: '100%' }}
+                                        value={language}
+                                        onChange={(e) => setLanguage(e.target.value)}
+                                    >
+                                        <option value="en">English</option>
+                                        <option value="ar">Arabic</option>
+                                    </select>
+                                </div>
 
                                 {/* Actions */}
                                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -355,26 +550,7 @@ export default function UpdateRoadmap() {
 
                                     <button
                                         className="adm-btn-confirm"
-                                        onClick={() => {
-                                            if (!bookTitle.trim()) return
-
-                                            const newBook = {
-                                                title: bookTitle,
-                                                author: bookAuthor,
-                                                url: bookLink,
-                                                pricingType: bookPricing
-                                            }
-
-                                            setBooks(prev => [...prev, newBook]) // ✅ دي أهم سطر
-
-                                            setShowAddBook(false)
-
-                                            // reset
-                                            setBookTitle('')
-                                            setBookAuthor('')
-                                            setBookLink('')
-                                            setBookPricing('Free')
-                                        }}
+                                        onClick={handleAddBook}
                                     >
                                         Save
                                     </button>
@@ -394,9 +570,11 @@ export default function UpdateRoadmap() {
                                 Add new resource
                             </button>
                         </div>
-                        {courses.length === 0 ? (
-                            <div style={{ color: '#bbb', fontSize: 13 }}>No resources added yet.</div>
-                        ) : courses.map((pl, i) => (
+                        {resources.length === 0 ? (
+                            <div style={{ color: '#bbb', fontSize: 13 }}>
+                                No resources added yet.
+                            </div>
+                        ) : resources.map((pl, i) => (
                             <div key={pl.id || i} className="ur-resource-row">
                                 <span className="ur-resource-name"><i className="bi bi-play-circle-fill" style={{ color: '#e74c3c' }}></i>{pl.title || pl.name}
                                     {pl.url && <a href={pl.url} target="_blank" rel="noreferrer" style={{ marginLeft: 6, fontSize: 11, color: '#999' }}><i className="bi bi-box-arrow-up-right"></i></a>}
@@ -404,21 +582,11 @@ export default function UpdateRoadmap() {
                                 <button
                                     className="ur-resource-del"
                                     onClick={() => {
-                                        const id = pl.id || pl._id
-
-                                        if (!id) {
-                                            setCourses(prev => prev.filter((_, idx) => idx !== i))
-                                            return
-                                        }
-
-                                        if (window.confirm('Delete this resource?')) {
-                                            roadmapsAPI.deleteResource(stepId, id)
-                                                .then(() => {
-                                                    showToast('Resource deleted!')
-                                                    fetchStep()
-                                                })
-                                                .catch(() => showToast('Delete failed', true))
-                                        }
+                                        setItemToDelete({
+                                            data: pl,
+                                            type: 'resource'
+                                        })
+                                        setShowDeleteModal(true)
                                     }}
                                 >
                                     <i className="bi bi-trash"></i>
@@ -453,6 +621,39 @@ export default function UpdateRoadmap() {
                                         onChange={e => setYtLink(e.target.value)}
                                         placeholder="https://youtube.com/..."
                                     />
+
+                                    {/* Pricing */}
+                                    <div style={{ marginBottom: 10 }}>
+                                        <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                                            Pricing
+                                        </label>
+
+                                        <select
+                                            className="adm-search"
+                                            style={{ width: '100%' }}
+                                            value={bookPricing}
+                                            onChange={(e) => setBookPricing(e.target.value)}
+                                        >
+                                            <option value="Free">Free</option>
+                                            <option value="Paid">Paid</option>
+                                        </select>
+                                    </div>
+                                    {/* Language */}
+                                    <div style={{ marginBottom: 10 }}>
+                                        <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                                            Language
+                                        </label>
+
+                                        <select
+                                            className="adm-search"
+                                            style={{ width: '100%' }}
+                                            value={language}
+                                            onChange={(e) => setLanguage(e.target.value)}
+                                        >
+                                            <option value="en">English</option>
+                                            <option value="ar">Arabic</option>
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div style={{ display: 'flex', gap: 8 }}>
@@ -465,21 +666,7 @@ export default function UpdateRoadmap() {
 
                                     <button
                                         className="adm-btn-confirm"
-                                        onClick={() => {
-                                            if (!ytTitle.trim()) return
-
-                                            const newItem = {
-                                                title: ytTitle,
-                                                url: ytLink
-                                            }
-
-                                            setCourses(prev => [...prev, newItem])
-
-                                            setShowAddYTResource(false)
-
-                                            setYtTitle('')
-                                            setYtLink('')
-                                        }}
+                                        onClick={handleAddResource}
                                     >
                                         Save
                                     </button>
@@ -505,14 +692,19 @@ export default function UpdateRoadmap() {
                             </div>
                         ) : quizzes.map((q, i) => (
                             <div key={i} className="ur-resource-row">
-                                <span className="ur-resource-name">{q.title}</span>
+                                <span className="ur-resource-name">
+                                    <i className="bi bi-journal-check" style={{ color: '#0B6BA0' }}></i>
+                                    {q.title}
+                                </span>
 
                                 <button
                                     className="ur-resource-del"
                                     onClick={() => {
-                                        if (window.confirm('Delete this quiz?')) {
-                                            setQuizzes(prev => prev.filter((_, idx) => idx !== i))
-                                        }
+                                        setItemToDelete({
+                                            data: q,
+                                            type: 'quiz'
+                                        })
+                                        setShowDeleteModal(true)
                                     }}
                                 >
                                     <i className="bi bi-trash"></i>
@@ -530,71 +722,32 @@ export default function UpdateRoadmap() {
                 </div>
             </div>
             {/* AddQuiz Modal */}
+            {/* Add Quiz Modal */}
             {showAddQuiz && (
                 <div
                     className="adm-modal-overlay show"
                     onClick={e => e.target === e.currentTarget && setShowAddQuiz(false)}
                 >
-                    <div className="adm-modal" style={{ maxWidth: 420 }}>
+                    <div className="adm-modal" style={{ maxWidth: 400 }}>
                         <h3>Add Quiz</h3>
 
-                        {/* Title */}
+                        {/* Quiz ID */}
                         <div style={{ marginBottom: 10 }}>
-                            <label>Title *</label>
+                            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                                Quiz ID *
+                            </label>
+
                             <input
                                 className="adm-search"
-                                placeholder="Quiz title"
-                                value={quizTitle}
+                                style={{ width: '100%' }}
+                                value={quizTitle} // هنستخدمه كـ id
                                 onChange={e => setQuizTitle(e.target.value)}
+                                placeholder="Enter quiz ID"
                             />
                         </div>
 
-                        {/* Description */}
-                        <div style={{ marginBottom: 10 }}>
-                            <label>Description</label>
-                            <input
-                                className="adm-search"
-                                placeholder="Quiz description"
-                                value={quizDescription}
-                                onChange={e => setQuizDescription(e.target.value)}
-                            />
-                        </div>
-
-                        {/* Questions Number */}
-                        <div style={{ marginBottom: 10 }}>
-                            <label>Questions Number</label>
-                            <input
-                                type="number"
-                                className="adm-search"
-                                value={quizQuestions}
-                                onChange={e => setQuizQuestions(e.target.value)}
-                            />
-                        </div>
-
-                        {/* Duration */}
-                        <div style={{ marginBottom: 10 }}>
-                            <label>Duration (seconds)</label>
-                            <input
-                                type="number"
-                                className="adm-search"
-                                value={quizDuration}
-                                onChange={e => setQuizDuration(e.target.value)}
-                            />
-                        </div>
-
-                        {/* Tags */}
-                        <div style={{ marginBottom: 10 }}>
-                            <label>Tags (comma-separated)</label>
-                            <input
-                                className="adm-search"
-                                placeholder="react, js, frontend"
-                                value={quizTags}
-                                onChange={e => setQuizTags(e.target.value)}
-                            />
-                        </div>
-
-                        {/* Buttons */}
-                        <div style={{ display: 'flex', gap: 8 }}>
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                             <button
                                 className="adm-btn-cancel"
                                 onClick={() => setShowAddQuiz(false)}
@@ -604,28 +757,7 @@ export default function UpdateRoadmap() {
 
                             <button
                                 className="adm-btn-confirm"
-                                onClick={() => {
-                                    if (!quizTitle.trim()) return
-
-                                    const newQuiz = {
-                                        title: quizTitle,
-                                        description: quizDescription,
-                                        questions: quizQuestions,
-                                        duration: quizDuration,
-                                        tags: quizTags
-                                    }
-
-                                    setQuizzes(prev => [...prev, newQuiz]) // ✅ المهم
-
-                                    setShowAddQuiz(false)
-
-                                    // reset
-                                    setQuizTitle('')
-                                    setQuizDescription('')
-                                    setQuizQuestions(10)
-                                    setQuizDuration(1000)
-                                    setQuizTags('')
-                                }}
+                                onClick={handleAddQuiz}
                             >
                                 Save
                             </button>
@@ -633,7 +765,6 @@ export default function UpdateRoadmap() {
                     </div>
                 </div>
             )}
-
             {/* Add Course Modal */}
             {showAddCourse && (
                 <div className="adm-modal-overlay show" onClick={e => e.target === e.currentTarget && setShowAddCourse(false)}>
@@ -653,12 +784,238 @@ export default function UpdateRoadmap() {
                                 <option>Free</option><option>Paid</option>
                             </select>
                         </div>
+                        {/* Language */}
+                        <div style={{ marginBottom: 10 }}>
+                            <label style={{ fontSize: 13, fontWeight: 600, display: 'block', marginBottom: 4 }}>
+                                Language
+                            </label>
+
+                            <select
+                                className="adm-search"
+                                style={{ width: '100%' }}
+                                value={language}
+                                onChange={(e) => setLanguage(e.target.value)}
+                            >
+                                <option value="en">English</option>
+                                <option value="ar">Arabic</option>
+                            </select>
+                        </div>
                         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                             <button className="adm-btn-cancel" onClick={() => setShowAddCourse(false)}>Cancel</button>
                             <button className="adm-btn-confirm" disabled={courseLoading} onClick={handleAddCourse}>
                                 {courseLoading ? 'Saving...' : 'Save'}
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+            {showDeleteModal && (
+                <div
+                    className="adm-modal-overlay show"
+                    onClick={e => e.target === e.currentTarget && setShowDeleteModal(false)}
+                >
+                    <div
+                        className="adm-modal"
+                        style={{
+                            maxWidth: 350,
+                            textAlign: 'center'
+                        }}
+                    >
+                        <h3 style={{ marginBottom: 10 }}>Delete Item</h3>
+
+                        <p style={{ fontSize: 13, color: '#666', marginBottom: 20 }}>
+                            Are you sure you want to delete this item?
+                        </p>
+
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                            <button
+                                className="adm-btn-cancel"
+                                onClick={() => setShowDeleteModal(false)}
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                className="adm-btn-confirm"
+                                style={{ background: '#e74c3c' }}
+                                onClick={async () => {
+                                    if (!itemToDelete) return
+
+                                    try {
+                                        const { type, data } = itemToDelete
+                                        const itemId = data?.id || data?._id
+
+                                        if (!itemId) {
+                                            showToast('Invalid item ❌', true)
+                                            return
+                                        }
+
+                                        if (type === 'resource') {
+                                            await roadmapsAPI.update(stepId, {
+                                                removeYoutubePlaylists: [itemId],
+                                                v: step?.v ?? 0
+                                            })
+                                        }
+
+                                        if (type === 'course') {
+                                            await roadmapsAPI.update(stepId, {
+                                                removeCourses: [itemId],
+                                                v: step?.v ?? 0
+                                            })
+                                        }
+
+                                        if (type === 'book') {
+                                            await roadmapsAPI.update(stepId, {
+                                                removeBooks: [itemId],
+                                                v: step?.v ?? 0
+                                            })
+                                        }
+
+                                        if (type === 'quiz') {
+                                            await roadmapsAPI.update(stepId, {
+                                                removeQuizzesIds: [itemId],
+                                                v: step?.v ?? 0
+                                            })
+                                        }
+
+                                        setShowDeleteModal(false)
+                                        setItemToDelete(null)
+
+                                        showToast('Deleted ✅')
+                                        fetchStep()
+
+                                    } catch (err) {
+                                        console.log(err)
+                                        showToast(err.message || 'Failed ❌', true)
+                                    }
+                                }}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showAddStepModal && (
+                <div
+                    className="adm-modal-overlay show"
+                    onClick={e => e.target === e.currentTarget && setShowAddStepModal(false)}
+                >
+                    <div className="adm-modal add-step-modal">
+
+                        <h3>Add New Step</h3>
+
+                        {/* Step Name */}
+                        <div className="adm-form-group">
+                            <label>Step Name *</label>
+                            <input
+                                className="adm-search"
+                                value={stepNameModal}
+                                onChange={e => setStepNameModal(e.target.value)}
+                                placeholder="Enter step name"
+                            />
+                        </div>
+
+                        {/* Step Description */}
+                        <div className="adm-form-group">
+                            <label>Step Description</label>
+                            <textarea
+                                className="adm-search"
+                                value={stepDescModal}
+                                onChange={e => setStepDescModal(e.target.value)}
+                                placeholder="Enter description"
+                            />
+                        </div>
+
+                        {/* Language */}
+                        <div className="adm-form-group">
+                            <label>Language</label>
+                            <select
+                                className="adm-search"
+                                value={stepLanguage}
+                                onChange={e => setStepLanguage(e.target.value)}
+                            >
+                                <option value="en">English</option>
+                                <option value="ar">Arabic</option>
+                            </select>
+                        </div>
+
+                        {/* Course URL */}
+                        <div className="adm-form-group">
+                            <label>Step Course URL</label>
+                            <input
+                                className="adm-search"
+                                placeholder="Course URL"
+                                value={newCourse.url}
+                                onChange={e => setNewCourse({ ...newCourse, url: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Book URL */}
+                        <div className="adm-form-group">
+                            <label>Step Book URL</label>
+                            <input
+                                className="adm-search"
+                                placeholder="Book URL"
+                                value={bookLink}
+                                onChange={e => setBookLink(e.target.value)}
+                            />
+                        </div>
+
+                        {/* YouTube URL */}
+                        <div className="adm-form-group">
+                            <label>Step YouTube Resource</label>
+                            <input
+                                className="adm-search"
+                                placeholder="YouTube URL"
+                                value={ytLink}
+                                onChange={e => setYtLink(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Quiz Title */}
+                        <div className="adm-form-group">
+                            <label>Quiz Title</label>
+                            <input
+                                className="adm-search"
+                                placeholder="Quiz title"
+                                value={quizTitle}
+                                onChange={e => setQuizTitle(e.target.value)}
+                            />
+                        </div>
+
+                        {/* Actions */}
+                        <div className="adm-modal-actions">
+                            <button
+                                className="adm-btn-cancel"
+                                onClick={() => setShowAddStepModal(false)}
+                            >
+                                Cancel
+                            </button>
+
+                            <button
+                                className="adm-btn-confirm"
+                                onClick={() => {
+                                    if (!stepNameModal.trim()) return
+
+                                    console.log("STEP DATA:", {
+                                        stepNameModal,
+                                        stepDescModal,
+                                        stepLanguage,
+                                        courseURL: newCourse.url,
+                                        bookURL: bookLink,
+                                        youtubeURL: ytLink,
+                                        quizTitle: quizTitle
+                                    })
+
+                                    setShowAddStepModal(false)
+                                }}
+                            >
+                                Save
+                            </button>
+                        </div>
+
                     </div>
                 </div>
             )}

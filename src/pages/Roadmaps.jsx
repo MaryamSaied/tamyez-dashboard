@@ -39,20 +39,41 @@ export default function Roadmaps() {
     const fetchRoadmaps = useCallback((p = 1, searchKey = '', status = 'all') => {
         setLoading(true)
         setError('')
+
         const params = { page: p, size: PER_PAGE }
+
         if (searchKey) params.searchKey = searchKey
+
         const apiFn = status === 'frozen'
             ? roadmapsAPI.getArchived(params)
             : roadmapsAPI.getAll(params)
+
         apiFn
             .then((res) => {
                 let data = res.body?.data || []
+
+                console.log('DATA:', data) // 👈 شوفي شكل الداتا
+
+                // ✅ فلترة حسب الحالة
+                if (statusFilter === 'frozen') {
+                    data = data.filter(item => item?.isArchived === true)
+                }
+
+                if (statusFilter === 'active') {
+                    data = data.filter(item => item?.isArchived === false)
+                }
+
                 setRoadmaps(data)
                 setTotalPages(res.body?.totalPages || 1)
             })
-            .catch((err) => setError(err.message || 'Failed to load roadmaps'))
-            .finally(() => setLoading(false))
-    }, [])
+            .catch((err) => {
+                setError(err.message || 'Failed to load roadmaps')
+            })
+            .finally(() => {
+                setLoading(false)
+            })
+
+    }, [statusFilter])
 
     useEffect(() => { fetchRoadmaps(1, '', statusFilter) }, [fetchRoadmaps])
 
